@@ -23,34 +23,38 @@ def create_table():
                 [temp] [float] NOT NULL,
                 [humid] [float] NOT NULL,
                 [time_entry] [datetime] NOT NULL,
-                [time_exit] [datetime] NOT NULL,
-                [time_diff] [float] NULL
+                [time_exit] [datetime] NOT NULL,            
+                [time_diff] [float] NOT NULL,
+                [total_spaces] [int] NULL
             )
         END
     ''')
     conn.commit()
 
 # Function to insert a new row into the table
-def insert_row(rego, temp, humid, time_entry, time_exit):
+def insert_row(rego, temp, humid, time_entry, time_exit):    
     time_diff = get_time_diff(time_entry, time_exit)
+    total_spaces = count_matching_times(time_entry, time_exit)
     cursor.execute(
-        'INSERT INTO data_table (rego, temp, humid, time_entry, time_exit, time_diff) VALUES (?, ?, ?, ?, ?, ?)',
-        (rego, temp, humid, time_entry, time_exit, time_diff)
+        'INSERT INTO data_table (rego, temp, humid, time_entry, time_exit, time_diff, total_spaces) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        (rego, temp, humid, time_entry, time_exit, time_diff, total_spaces)
     )
     conn.commit()
 
 # Function to update an existing row in the table
-def update_row(id, rego, temp, humid, time_entry, time_exit):
+def update_row(id, rego, temp, humid, time_entry, time_exit):    
     time_diff = get_time_diff(time_entry, time_exit)
+    total_spaces = count_matching_times(time_entry, time_exit)
     cursor.execute('UPDATE data_table '
                    'SET rego = ?, '
                    'temp = ?, '
                    'humid = ?, '
                    'time_entry = ?, '
                    'time_exit = ?, '
-                   'time_diff = ? '
+                   'time_diff = ?, '
+                   'total_spaces = ? '
                    'WHERE id = ?',
-                   rego, temp, humid, time_entry, time_exit, time_diff, id)
+                   rego, temp, humid, time_entry, time_exit, time_diff, total_spaces, id)
     conn.commit()
 
 # Function to delete an existing row from the table
@@ -76,6 +80,12 @@ def generate_test_data(num_rows):
         time_entry = datetime.datetime.now() - datetime.timedelta(days=random.randint(0, 30), hours=random.randint(0, 23), minutes=random.randint(0, 59), seconds=random.randint(0, 59))
         time_exit = time_entry + datetime.timedelta(hours=random.randint(0, 23), minutes=random.randint(0, 59), seconds=random.randint(0, 59))
         insert_row(rego, temp, humid, time_entry, time_exit)
+
+# Define function to count rows with matching time_entry and time_exit
+def count_matching_times(time_entry, time_exit):
+    cursor.execute("SELECT COUNT(*) FROM data_table WHERE time_entry>=? AND time_entry<? AND time_exit>?", (time_entry, time_exit, time_entry))
+    result = cursor.fetchone()[0]
+    return result
 
 # Function to calculate the time difference between two datetime objects in hours and minutes
 def get_time_diff(start_time, end_time):
