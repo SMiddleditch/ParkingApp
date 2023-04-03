@@ -71,11 +71,13 @@ def generate_test_data(num_rows):
         rego = f"AB{i:02d}CD"
         temp = round(random.uniform(-10, 50), 1)
         humid = round(random.uniform(0, 100), 1)
+        if temp <= 0:
+            humid = min(humid, 80)
         time_entry = datetime.datetime.now() - datetime.timedelta(days=random.randint(0, 30), hours=random.randint(0, 23), minutes=random.randint(0, 59), seconds=random.randint(0, 59))
         time_exit = time_entry + datetime.timedelta(hours=random.randint(0, 23), minutes=random.randint(0, 59), seconds=random.randint(0, 59))
         insert_row(rego, temp, humid, time_entry, time_exit)
 
-# Function to calculate the time difference between two datetime objects in hours, minutes, and seconds
+# Function to calculate the time difference between two datetime objects in hours and minutes
 def get_time_diff(start_time, end_time):
     time_diff = end_time - start_time
 
