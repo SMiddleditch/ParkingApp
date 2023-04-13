@@ -211,7 +211,7 @@ def car_exit():
         for row in rows:
             id, rego, temp, humid, time_entry = row 
             time_entry_str = time_entry.strftime('%Y-%m-%d %H:%M:%S')
-            time_exit = time_entry + timedelta(minutes=random.randint(0, 600)) # 10 hours
+            time_exit = time_entry + timedelta(minutes=random.randint(60, 600)) # 10 hours
             time_exit_str = time_exit.strftime('%Y-%m-%d %H:%M:%S')
             time_diff = (time_exit - time_entry).total_seconds() / 60.0
             insert_row_sql = f"INSERT INTO exit_table (id, rego, temp, humid, time_entry, time_exit, time_diff) VALUES ({id}, '{rego}', {temp}, {humid}, '{time_entry_str}', '{time_exit_str}', {time_diff})"
