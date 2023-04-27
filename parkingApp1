@@ -4,6 +4,23 @@ import random
 
 ############ IN ##################################################################################################################################################################
 
+# Azure bellow ///////////////////////
+# server_name = 'parkpal-server.database.windows.net'
+# database_name = 'ParkingDb'
+# username = 'parkpal-admin'
+# password = 'Password123'
+
+# connection_string = 'Driver={ODBC Driver 17 for SQL Server};Server='+server_name+';Database='+database_name+';UID='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+
+# # Connection to the database
+# conn = pyodbc.connect(connection_string)
+
+# # Create a cursor to execute SQL queries
+# cursor = conn.cursor()
+
+# Azure above ///////////////////////
+
+# SQL bellow /////////////////////////////
 # Connect to the database using Windows authentication
 conn = pyodbc.connect('Driver={SQL Server};'
                       'Server=LAPTOP-4EHGBCL4;'
@@ -12,6 +29,7 @@ conn = pyodbc.connect('Driver={SQL Server};'
 
 # Create a cursor to execute SQL queries
 cursor = conn.cursor()
+# SQL above /////////////////////////////
 
 # Entry functions
 def car_entry():
@@ -67,7 +85,7 @@ def car_entry():
         rego = get_rego()
         temp = get_temp()
         humid = get_humid()
-        time_entry = get_time_entry(month=4)  # Specify the month here
+        time_entry = get_time_entry(month=1)  # Specify the month here
         is_parked = 1
         insert_row_sql = f"INSERT INTO parking_table (rego, temp, humid, time_entry, is_parked) VALUES ('{rego}', {temp}, {humid}, '{time_entry}', {is_parked})"
         cursor.execute(insert_row_sql)
@@ -91,7 +109,7 @@ def car_entry():
     create_table()
 
     # Insert 10 new rows with generated data
-    for i in range(2):
+    for i in range(100):
         insert_row()
 
     # Insert a row with test data
@@ -109,14 +127,21 @@ car_entry()
 ############# TEST EXIT BELLOW ################################################################################################################################################################
 
 def car_exit():
+
+    # Connect back to Azure
+    # conn = pyodbc.connect(connection_string)
+    # cursor = conn.cursor()
+
+   # SQL bellow /////////////////////////////
     # Connect to the database using Windows authentication
     conn = pyodbc.connect('Driver={SQL Server};'
-                          'Server=LAPTOP-4EHGBCL4;'
-                          'Database=your_parking;'
-                          'Trusted_Connection=yes;')
+                      'Server=LAPTOP-4EHGBCL4;'
+                      'Database=your_parking;'
+                      'Trusted_Connection=yes;')
 
     # Create a cursor to execute SQL queries
     cursor = conn.cursor()
+    # SQL above /////////////////////////////
 
     # Function to add missing columns to the parking_table if they don't exist
     def add_columns():
