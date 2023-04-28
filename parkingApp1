@@ -1,6 +1,7 @@
 import pyodbc
 from datetime import datetime, timedelta
 import random
+import math
 
 ############ IN ##################################################################################################################################################################
 
@@ -32,8 +33,7 @@ cursor = conn.cursor()
 # SQL above /////////////////////////////
 
 # Entry functions
-def car_entry():
-
+def car_entry(num_entries=0):
     def create_table():
         cursor.execute('''
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[parking_table]') AND type in (N'U'))
@@ -50,75 +50,105 @@ def car_entry():
         ''')
         conn.commit()
 
-    # Function to get rego
+
     def get_rego():
         rego = f"AB{random.randint(1, 99):02d}CD" 
         return rego
+
+#####################################
+    # def get_temp(num_entries, month, day):
+    #     base_temp = round(random.uniform(-5, 30), 1)
+    #     if num_entries > 70 and base_temp < 27:
+    #         base_temp = round(random.uniform(27, 40), 1)
+    #     if num_entries > 50 and base_temp < 23:
+    #         base_temp = round(random.uniform(23, 27), 1)
+    #     if num_entries > 30 and base_temp < 13:
+    #         base_temp = round(random.uniform(13, 23), 1)
+
+  
+    #     temp_variation = max(min(2 * math.sin(2 * math.pi * day / 30) + 2, 2), -2)
     
-    # Function to get temp
-    def get_temp():
-        temp = round(random.uniform(-10, 50), 1)
+    
+    #     temp = max(min(round(base_temp + temp_variation, 1), 30), -5)
+
+    #     return temp
+    ####################################
+    def get_temp(num_entries, month, day):
+        base_temp = round(random.uniform(-5, 30.0), 1)
+        if num_entries > 70 and base_temp < 27:
+            base_temp = round(random.uniform(27, 40), 1)
+        if num_entries > 50 and base_temp < 23:
+            base_temp = round(random.uniform(23, 27), 1)
+        if num_entries > 30 and base_temp < 13:
+            base_temp = round(random.uniform(13, 23), 1)
+
+    # calculate variation based on day of the month
+        temp_variation = 2 * math.sin(2 * math.pi * day / 30) + 2
+
+    # limit variation to a maximum of 5 degrees compared to the previous day
+        if day > 1:
+            prev_day_temp = get_temp(num_entries, month, day-1)
+            max_variation = min(5, abs(base_temp - prev_day_temp))
+            temp_variation = max(-max_variation, min(max_variation, temp_variation))
+
+    # add variation to base temperature
+        temp = round(base_temp + temp_variation, 1)
+
         return temp
-    
-    # Function to get humidity
-    def get_humid():
-        temp = get_temp()
+###################
+
+    def get_humid(num_entries):
+        temp = get_temp(month=1, day=1, num_entries=num_entries)
         humid = round(random.uniform(0, 100), 1)
         if temp <= 0:
             humid = min(humid, 80)
         return humid
-    
-   # Function to get time entry
+
+
     def get_time_entry(month=None):
         if month is None:
             month = random.randint(1, 12)
         year = 2023
         day = random.randint(1, 28)  # 28 days for simplicity
-        hour = random.randint(0, 23)
+        hour = random.randint(8, 19) ### Change for hours specified, it was (0, 23)
         minute = random.randint(0, 59)
         second = random.randint(0, 59)
         time_entry = datetime(year, month, day, hour, minute, second)
         return time_entry.strftime('%Y-%m-%d %H:%M:%S')
 
-    # Function to insert a new row with generated data
+
     def insert_row():
         rego = get_rego()
-        temp = get_temp()
-        humid = get_humid()
+        temp = get_temp(month=1, day=1, num_entries=num_entries) # specify month and day here
+        humid = get_humid(num_entries)
         time_entry = get_time_entry(month=1)  # Specify the month here
         is_parked = 1
         insert_row_sql = f"INSERT INTO parking_table (rego, temp, humid, time_entry, is_parked) VALUES ('{rego}', {temp}, {humid}, '{time_entry}', {is_parked})"
         cursor.execute(insert_row_sql)
         conn.commit()
 
-    # Function to insert a new row into the table
-    def test_row(rego, temp, humid, time_entry, is_parked):   
-        cursor.execute(
-            'INSERT INTO parking_table (rego, temp, humid, time_entry, is_parked) VALUES (?, ?, ?, ?, ?)',
-            (rego, temp, humid, time_entry, is_parked)
-        )
-        conn.commit()
 
-    # Function to select all rows from the table and print them in ascending order by time entry
+
     def select_all_rows():
         cursor.execute('SELECT ROW_NUMBER() OVER (ORDER BY time_entry ASC) AS id, rego, temp, humid, time_entry, is_parked FROM parking_table')
         for row in cursor.fetchall():
             print(row)
 
-    # Create the table if it doesn't exist
+    if num_entries == 0:
+        is_weekend = datetime.now().weekday() in [5, 6]
+        num_entries = random.randint(70, 100) if is_weekend else random.randint(30, 50)
+
     create_table()
 
-    # Insert 10 new rows with generated data
-    for i in range(100):
+    for i in range(num_entries):
         insert_row()
 
-    # Insert a row with test data
-    # test_row('NU04TVA', 10.5, 10.5, get_time_entry(month=9), 1)
+    for i in range(1000):
+        insert_row()
 
-    # Select all rows and print them
     select_all_rows()
 
-    # Close the cursor and connection
+
     cursor.close()
     conn.close()
 
@@ -143,7 +173,6 @@ def car_exit():
     cursor = conn.cursor()
     # SQL above /////////////////////////////
 
-    # Function to add missing columns to the parking_table if they don't exist
     def add_columns():
         cursor.execute('''
             IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'parking_table' AND COLUMN_NAME = 'time_exit')
@@ -163,13 +192,14 @@ def car_exit():
         ''')
         conn.commit()
 
-    # Function to update the time_exit, time_diff, and is_parked columns in the parking_table
     def update_parking_table():
         cursor.execute("SELECT id, time_entry FROM parking_table WHERE is_parked=1")
         rows = cursor.fetchall()
         for row in rows:
             id, time_entry = row
             time_exit = time_entry + timedelta(minutes=random.randint(60, 600)) # 1-10 hours
+            while time_exit.hour >= 20:  
+                time_exit = time_entry + timedelta(minutes=random.randint(60, 600))
             time_exit_str = time_exit.strftime('%Y-%m-%d %H:%M:%S')
             time_diff = int((time_exit - time_entry).total_seconds() / 3600) # in hours
             is_parked = 0
@@ -177,19 +207,15 @@ def car_exit():
             cursor.execute(update_row_sql)
         conn.commit()
 
-    # Add missing columns to the parking_table if they don't exist
     add_columns()
 
-    # Update the time_exit, time_diff, and is_parked columns in the parking_table
     update_parking_table()
 
-    # Display the updated parking_table
-    cursor.execute("SELECT * FROM parking_table")
+    cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
     rows = cursor.fetchall()
     for row in rows:
         print(row)
 
-    # Close the cursor and connection
     cursor.close()
     conn.close()
 
@@ -208,7 +234,7 @@ def read_database():
     cursor = conn.cursor()
 
     # Retrieve all rows from table
-    cursor.execute('SELECT * FROM parking_table')
+    cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
     rows = cursor.fetchall()
 
     # Conver to list of dictionaries
@@ -231,11 +257,11 @@ def read_database():
     cursor.close()
     conn.close()
 
-    return data
+#     return data
 
-data = read_database()
-for row in data:
-    print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
+# data = read_database()
+# for row in data:
+#     print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
 
 ############ Take a reg and exit bellow #################################################################################################################################################################
 
