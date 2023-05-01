@@ -3,38 +3,19 @@ from datetime import datetime, timedelta
 import random
 import math
 
-############ IN ##################################################################################################################################################################
 
-# Azure bellow ///////////////////////
-# server_name = 'parkpal-server.database.windows.net'
-# database_name = 'ParkingDb'
-# username = 'parkpal-admin'
-# password = 'Password123'
+server_name = 'parkpal-server.database.windows.net'
+database_name = 'ParkingDb'
+username = 'parkpal-admin'
+password = 'Password123'
 
-# connection_string = 'Driver={ODBC Driver 17 for SQL Server};Server='+server_name+';Database='+database_name+';UID='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+connection_string = 'Driver={ODBC Driver 17 for SQL Server};Server='+server_name+';Database='+database_name+';UID='+username+';PWD='+password+';Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
 
-# # Connection to the database
-# conn = pyodbc.connect(connection_string)
+conn = pyodbc.connect(connection_string)
 
-# # Create a cursor to execute SQL queries
-# cursor = conn.cursor()
-
-# Azure above ///////////////////////
-
-# SQL bellow /////////////////////////////
-# Connect to the database using Windows authentication
-conn = pyodbc.connect('Driver={SQL Server};'
-                      'Server=LAPTOP-4EHGBCL4;'
-                      'Database=your_parking;'
-                      'Trusted_Connection=yes;')
-
-# Create a cursor to execute SQL queries
 cursor = conn.cursor()
-# SQL above /////////////////////////////
 
-# Entry functions
-def car_entry(num_entries_per_day=[70, 50, 50, 30, 30, 70, 50]):
-
+def car_entry():
     def create_table():
         cursor.execute('''
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[parking_table]') AND type in (N'U'))
@@ -52,60 +33,23 @@ def car_entry(num_entries_per_day=[70, 50, 50, 30, 30, 70, 50]):
         conn.commit()
 
     def get_rego():
-        rego = f"AB{random.randint(1, 99):02d}CD" 
+        rego = input("Enter registration number: ")
         return rego
 
-    def get_temp(num_entries_per_day, month, day, hour, minute):
-        base_temp = round(random.uniform(6, 25), 1)
-        if num_entries_per_day > 70 and base_temp < 20:
-            base_temp = round(random.uniform(20, 25), 1)
-        if num_entries_per_day > 50 and base_temp < 15:
-            base_temp = round(random.uniform(15, 20), 1)
-        if num_entries_per_day > 30 and base_temp < 9:
-            base_temp = round(random.uniform(9, 15), 1)
-
-        temp_variation = 0
-        for i in range(1, 2):
-            temp_variation += random.uniform(-0.5, 0.5) * math.sin(2 * math.pi * day / 28 * i + (hour + minute/60) / 12 * math.pi)
-        temp_variation *= 0.5
-        
-        temp = round(base_temp + temp_variation, 1)
-        
+    def get_temp():
+        temp = float(input("Enter temperature: "))
         return temp
 
-    def get_humid(num_entries_per_day, month, day, hour, minute):
-        base_temp = get_temp(num_entries_per_day, month, day, hour, minute)
-        humid = round(random.uniform(0, 40), 1)
-        if base_temp <= 0:
-            humid = min(humid, 40)
-        
-        humid_variation = 0
-        for i in range(1, 3):
-            humid_variation += random.uniform(-0.1, 0.1) * math.sin(2 * math.pi * day / 28 * i + (hour + minute/60) / 12 * math.pi)
-        humid_variation *= 0.3
+    def get_humid(): 
+        humid = float(input("Enter humidity: "))
+        return humid
 
-        humid += humid_variation
-        humid = max(0, min(humid, 40))
-        
-        return round(humid, 1)
-
-    def get_time_entry(month=None):
-        if month is None:
-            month = random.randint(1, 12)
-        year = 2023
-        day = random.randint(1, 28)  
-        hour = random.randint(8, 19) 
-        minute = random.randint(0, 59)
-        second = random.randint(0, 59)
-        time_entry = datetime(year, month, day, hour, minute, second)
+    def get_time_entry():
+        time_entry = datetime.now().replace(microsecond=0) # Datetime without milliseconds
         return time_entry.strftime('%Y-%m-%d %H:%M:%S')
 
-
-    def insert_row(day, hour, minute):
-        rego = get_rego()
-        temp = get_temp(num_entries_per_day=num_entries_per_day[day-1], month=1, day=day, hour=hour, minute=minute) 
-        humid = get_humid(num_entries_per_day=num_entries_per_day[day-1], month=1, day=day, hour=hour, minute=minute) 
-        time_entry = get_time_entry(month=1)  # Specify the month here
+    def insert_row(rego, temp, humid):
+        time_entry = get_time_entry()
         is_parked = 1
         insert_row_sql = f"INSERT INTO parking_table (rego, temp, humid, time_entry, is_parked) VALUES ('{rego}', {temp}, {humid}, '{time_entry}', {is_parked})"
         cursor.execute(insert_row_sql)
@@ -117,46 +61,32 @@ def car_entry(num_entries_per_day=[70, 50, 50, 30, 30, 70, 50]):
             print(row)
 
     create_table()
-
-    for i in range(1):
-        for day, num_entries in enumerate(num_entries_per_day, start=1):
-            for j in range(num_entries):
-                hour = random.randint(8, 19) 
-                minute = random.randint(0, 59)
-                insert_row(day, hour, minute)
-
+    rego = get_rego()
+    temp = get_temp()
+    humid = get_humid()
+    insert_row(rego, temp, humid)
     select_all_rows()
 
-    # Close the cursor and connection
     cursor.close()
     conn.close()
 
 car_entry()
 
-############# TEST EXIT BELLOW ################################################################################################################################################################
+#############
+
+def get_exit_reg():
+    return "AB66CD"
 
 def car_exit():
-
-    # Connect back to Azure
-    # conn = pyodbc.connect(connection_string)
-    # cursor = conn.cursor()
-
-   # SQL bellow /////////////////////////////
-    # Connect to the database using Windows authentication
-    conn = pyodbc.connect('Driver={SQL Server};'
-                      'Server=LAPTOP-4EHGBCL4;'
-                      'Database=your_parking;'
-                      'Trusted_Connection=yes;')
-
-    # Create a cursor to execute SQL queries
+    
+    conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
-    # SQL above /////////////////////////////
 
     def add_columns():
         cursor.execute('''
             IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'parking_table' AND COLUMN_NAME = 'time_exit')
             BEGIN
-                ALTER TABLE parking_table ADD time_exit DATETIME NULL;
+                ALTER TABLE parking_table ADD time_exit DATETIME2(0) NULL;
             END
 
             IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'parking_table' AND COLUMN_NAME = 'time_diff')
@@ -172,19 +102,20 @@ def car_exit():
         conn.commit()
 
     def update_parking_table():
-        cursor.execute("SELECT id, time_entry FROM parking_table WHERE is_parked=1")
-        rows = cursor.fetchall()
-        for row in rows:
+        rego = get_exit_reg()
+        cursor.execute("SELECT id, time_entry FROM parking_table WHERE is_parked=1 AND rego=?", (rego,))
+        row = cursor.fetchone()
+        if row:
             id, time_entry = row
-            time_exit = time_entry + timedelta(minutes=random.randint(60, 600)) # 1-10 hours
-            while time_exit.hour >= 20:  
-                time_exit = time_entry + timedelta(minutes=random.randint(60, 600))
-            time_exit_str = time_exit.strftime('%Y-%m-%d %H:%M:%S')
+            time_exit = datetime.now().replace(microsecond=0) # Datetime without milliseconds
             time_diff = int((time_exit - time_entry).total_seconds() / 3600) # in hours
             is_parked = 0
-            update_row_sql = f"UPDATE parking_table SET time_exit='{time_exit_str}', time_diff={time_diff}, is_parked={is_parked} WHERE id={id}"
-            cursor.execute(update_row_sql)
-        conn.commit()
+            update_row_sql = "UPDATE parking_table SET time_exit=?, time_diff=?, is_parked=? WHERE id=?"
+            cursor.execute(update_row_sql, (time_exit, time_diff, is_parked, id))
+
+            conn.commit()
+        else:
+            print(f"No parked cars found with rego: {rego}")
 
     add_columns()
 
@@ -200,23 +131,16 @@ def car_exit():
 
 car_exit()
 
-#############################################################################################################################################################################
+#############
 
 def read_database():
-    # Connect to the database using Windows authentication
-    conn = pyodbc.connect('Driver={SQL Server};'
-                          'Server=LAPTOP-4EHGBCL4;'
-                          'Database=your_parking;'
-                          'Trusted_Connection=yes;')
 
-    # Cursor to execute SQL queries
+    conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
 
-    # Retrieve all rows from table
     cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
     rows = cursor.fetchall()
 
-    # Conver to list of dictionaries
     data = []
     for row in rows:
         id, rego, temp, humid, time_entry, is_parked, time_exit, time_diff = row
@@ -232,267 +156,12 @@ def read_database():
         }
         data.append(row_dict)
 
-    # Cursor and connection
     cursor.close()
     conn.close()
 
-#     return data
+    return data
 
-# data = read_database()
-# for row in data:
-#     print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
+data = read_database()
+for row in data:
+    print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
 
-############ Take a reg and exit bellow #################################################################################################################################################################
-
-# def get_exit_reg():
-#     exit_reg = "AB11CD"
-#     return exit_reg
-
-# def car_exit(rego):
-#     # Connect to the database using Windows authentication
-#     conn = pyodbc.connect('Driver={SQL Server};'
-#                           'Server=LAPTOP-4EHGBCL4;'
-#                           'Database=your_parking;'
-#                           'Trusted_Connection=yes;')
-
-#     # Create a cursor to execute SQL queries
-#     cursor = conn.cursor()
-
-#     # Function to create exit table if it doesn't exist
-#     def create_table():
-#         cursor.execute('''
-#             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[exit_table]') AND type in (N'U'))
-#             BEGIN
-#                 CREATE TABLE [dbo].[exit_table](
-#                     [id] [int] IDENTITY(1,1) NOT NULL,
-#                     [rego] [nvarchar](50) NOT NULL,
-#                     [temp] [float] NOT NULL,
-#                     [humid] [float] NOT NULL,
-#                     [time_entry] [datetime] NOT NULL,
-#                     [time_exit] [datetime] NOT NULL,            
-#                     [time_diff] [float] NOT NULL,
-#                     [is_parked] [int] NULL
-#                 )
-#             END
-#         ''')
-#         conn.commit()
-
-#     # Function to get entry data
-#     def get_entry_data():
-#         cursor.execute(f"SELECT TOP 1 rego, temp, humid, time_entry FROM entry_table WHERE rego='{rego}' AND is_parked = 1 ORDER BY time_entry ASC")
-#         row = cursor.fetchone()
-#         return row
-
-#     # Function to insert a new row with generated data
-#     def insert_row():
-#         rego, temp, humid, time_entry = get_entry_data()
-#         time_entry_str = time_entry.strftime('%Y-%m-%d %H:%M:%S')
-#         time_exit = datetime.now()
-#         time_exit_str = time_exit.strftime('%Y-%m-%d %H:%M:%S')
-#         time_diff = (time_exit - time_entry).total_seconds() / 60.0
-#         is_parked = 0
-#         insert_row_sql = f"INSERT INTO exit_table (rego, temp, humid, time_entry, time_exit, time_diff, is_parked) VALUES ('{rego}', {temp}, {humid}, '{time_entry_str}', '{time_exit_str}', {time_diff}, {is_parked})"
-#         cursor.execute(insert_row_sql)
-#         conn.commit()
-
-#     # Function to get all rows from entry_table and print them
-#     def show_entry_table():
-#         cursor.execute("SELECT * FROM entry_table")
-#         rows = cursor.fetchall()
-#         for row in rows:
-#             print(row)
-
-#     # Create the exit_table if it doesn't exist
-#     create_table()
-
-#     # Insert a new row with generated data
-#     insert_row()
-
-#     # Show all entries in the entry_table
-#     show_entry_table()
-
-#     # Display the contents of the exit_table
-#     cursor.execute("SELECT * FROM exit_table")
-#     rows = cursor.fetchall()
-#     for row in rows:
-#         print(row)
-
-#     # Close the cursor and connection
-#     cursor.close()
-#     conn.close()
-
-# car_exit(get_exit_reg())
-
-############################################################################################################################################################################
-
-############### Exit and creates a exit table bellow #############################################################################################################################################################
-
-# def car_exit():
-#     # Connect to the database using Windows authentication
-#     conn = pyodbc.connect('Driver={SQL Server};'
-#                           'Server=LAPTOP-4EHGBCL4;'
-#                           'Database=your_parking;'
-#                           'Trusted_Connection=yes;')
-
-#     # Create a cursor to execute SQL queries
-#     cursor = conn.cursor()
-
-#     # Function to create exit table if it doesn't exist
-#     def create_exit_table():
-#         cursor.execute('''
-#             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[exit_table]') AND type in (N'U'))
-#             BEGIN
-#                 CREATE TABLE [dbo].[exit_table](
-#                     [id] [int] NOT NULL PRIMARY KEY,
-#                     [rego] [nvarchar](50) NOT NULL,
-#                     [temp] [float] NOT NULL,
-#                     [humid] [float] NOT NULL,
-#                     [time_entry] [datetime] NOT NULL,
-#                     [time_exit] [datetime] NOT NULL,
-#                     [time_diff] [float] NULL
-#                     CONSTRAINT [FK_exit_table_entry_table] FOREIGN KEY ([id]) REFERENCES [dbo].[entry_table]([id])
-#                 )
-#             END
-#         ''')
-#         conn.commit()
-
-#     def get_entry_data():
-#         cursor.execute("SELECT id, rego, temp, humid, time_entry FROM entry_table")
-#         rows = cursor.fetchall()
-#         return rows
-
-#     # Function to insert a new row with generated data
-#     def insert_row():
-#         rows = get_entry_data()
-#         for row in rows:
-#             id, rego, temp, humid, time_entry = row 
-#             time_entry_str = time_entry.strftime('%Y-%m-%d %H:%M:%S')
-#             time_exit = time_entry + timedelta(minutes=random.randint(60, 600)) # 10 hours
-#             time_exit_str = time_exit.strftime('%Y-%m-%d %H:%M:%S')
-#             time_diff = (time_exit - time_entry).total_seconds() / 60.0
-#             insert_row_sql = f"INSERT INTO exit_table (id, rego, temp, humid, time_entry, time_exit, time_diff) VALUES ({id}, '{rego}', {temp}, {humid}, '{time_entry_str}', '{time_exit_str}', {time_diff})"
-#             cursor.execute(insert_row_sql)
-#         conn.commit()
-
-#     # Function to get all rows from entry_table and print them
-#     def show_entry_table():
-#         cursor.execute("SELECT * FROM entry_table")
-#         rows = cursor.fetchall()
-#         for row in rows:
-#             print(row)
-
-#     # Create the exit_table if it doesn't exist
-#     create_exit_table()
-
-#     # Insert a new row with generated data
-#     insert_row()
-
-#     # Show all entries in the entry_table
-#     show_entry_table()
-
-#     # Display the contents of the exit_table
-#     cursor.execute("SELECT * FROM exit_table")
-#     rows = cursor.fetchall()
-#     for row in rows:
-#         print(row)
-
-#     # Close the cursor and connection
-#     cursor.close()
-#     conn.close()
-
-# car_exit()
-
-#############################################################################################################################################################################
-
-########### demo bellow ##################################################################################################################################################################
-#     # Function to create exit table if it doesn't exist
-#     def create_table():
-#         cursor.execute('''
-#             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[exit_table]') AND type in (N'U'))
-#             BEGIN
-#                 CREATE TABLE [dbo].[exit_table](
-#                     [id] [int] IDENTITY(1,1) NOT NULL,
-#                     [rego] [nvarchar](50) NOT NULL,
-#                     [temp] [float] NOT NULL,
-#                     [humid] [float] NOT NULL,
-#                     [time_entry] [datetime] NOT NULL,
-#                     [time_exit] [datetime] NOT NULL,            
-#                     [time_diff] [float] NOT NULL,
-#                     [is_parked] [int] NULL
-#                 )
-#             END
-#         ''')
-#         conn.commit()
-
-#     # Function to insert a new row into the table
-#     def insert_row(rego, temp, humid, time_entry, time_exit, is_parked):    
-#         time_diff = get_time_diff(time_entry, time_exit)
-#         cursor.execute(
-#             'INSERT INTO exit_table (rego, temp, humid, time_entry, time_exit, time_diff, is_parked) VALUES (?, ?, ?, ?, ?, ?, ?)',
-#             (rego, temp, humid, time_entry, time_exit, time_diff, is_parked)
-#         )
-#         conn.commit()
-    
-#     # Function to update an existing row in the table
-#     def update_row(id, rego, temp, humid, time_entry, time_exit, is_parked):
-#         time_diff = get_time_diff(time_entry, time_exit)
-#         cursor.execute('UPDATE exit_table '
-#                     'SET rego = ?, '
-#                     'temp = ?, '
-#                     'humid = ?, '
-#                     'time_entry = ?, '
-#                     'time_exit = ?, '
-#                     'time_diff = ?, '
-#                     'is_parked = ? '
-#                     'WHERE id = ?',
-#                     (rego, temp, humid, time_entry, time_exit, time_diff, is_parked, id))
-#         conn.commit()
-
-#     # Function to delete an existing row from the table
-#     def delete_row(id):
-#         cursor.execute('DELETE FROM exit_table '
-#                     'WHERE id = ?',
-#                     (id,)) 
-#         conn.commit()
-
-#     # Function to select all rows from the table and print them
-#     def select_all_rows():
-#         cursor.execute('SELECT * FROM exit_table')
-#         for row in cursor.fetchall():
-#             print(row)
-
-#     # Function to calculate the time difference between two datetime objects in hours and minutes
-#     def get_time_diff(start_time, end_time):
-#         time_diff = end_time - start_time
-
-#         sec = time_diff.total_seconds()
-#         minutes = sec / 60
-#         hours = sec / (60 * 60)
-        
-#         # seconds = seconds % 60
-#         return hours + minutes 
-
-#     # Create the table if it doesn't exist
-#     create_table()
-
-#     is_parked  = 0
-
-#     # Insert a new row
-#     insert_row('NU04TVA', 10.5, 10.5, datetime.datetime(2022, 1, 1), datetime.datetime.now(), is_parked)
-#     insert_row('NU04TVB', 20.5, 10.5, datetime.datetime(2022, 2, 1), datetime.datetime.now(), is_parked)
-#     insert_row('NU04TVC', 30.5, 10.5, datetime.datetime(2022, 3, 1), datetime.datetime.now(), is_parked)
-
-#     # Update the row with id 1
-#     update_row(1, 'test string', 1.0, 2.0, datetime.datetime.now(), datetime.datetime.now(), is_parked)
-
-#     # Delete the row with id 2
-#     delete_row(2)
-
-#     # Select all rows and print them
-#     select_all_rows()
-
-#     # Close the cursor and connection
-#     cursor.close()
-#     conn.close()
-
-# car_exit()
