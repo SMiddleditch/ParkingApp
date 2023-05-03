@@ -15,8 +15,22 @@ conn = pyodbc.connect(connection_string)
 
 cursor = conn.cursor()
 
+def create_price_table():
+    cursor.execute('''
+        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[price_table]') AND type in (N'U'))
+        BEGIN
+            CREATE TABLE [dbo].[price_table](
+                [id] [int] IDENTITY(1,1) NOT NULL,
+                [price] [float] NOT NULL,
+            )
+        END
+    ''')
+    conn.commit()
+
+create_price_table()
+
 def car_entry():
-    def create_table():
+    def create_parking_table():
         cursor.execute('''
             IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[parking_table]') AND type in (N'U'))
             BEGIN
@@ -33,15 +47,15 @@ def car_entry():
         conn.commit()
 
     def get_rego():
-        rego = input("Enter registration number: ")
+        rego = input("Enter registration number: ") # cam
         return rego
 
     def get_temp():
-        temp = float(input("Enter temperature: "))
+        temp = float(input("Enter temperature: ")) # temp
         return temp
 
     def get_humid(): 
-        humid = float(input("Enter humidity: "))
+        humid = float(input("Enter humidity: ")) # humid
         return humid
 
     def get_time_entry():
@@ -60,7 +74,7 @@ def car_entry():
         for row in cursor.fetchall():
             print(row)
 
-    create_table()
+    create_parking_table()    
     rego = get_rego()
     temp = get_temp()
     humid = get_humid()
