@@ -1,5 +1,8 @@
 import pyodbc
 from datetime import datetime, timedelta
+import time
+import schedule
+import threading
 import random
 import math
 
@@ -147,42 +150,41 @@ def car_exit():
 
 #############
 
-def read_parking_database():
+# def read_parking_database():
 
-    conn = pyodbc.connect(connection_string)
-    cursor = conn.cursor()
+#     conn = pyodbc.connect(connection_string)
+#     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
-    rows = cursor.fetchall()
+#     cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
+#     rows = cursor.fetchall()
 
-    data = []
-    for row in rows:
-        id, rego, temp, humid, time_entry, is_parked, time_exit, time_diff = row
-        row_dict = {
-            'id': id,
-            'rego': rego,
-            'temp': temp,
-            'humid': humid,
-            'time_entry': time_entry,
-            'time_exit': time_exit,
-            'time_diff': time_diff,
-            'is_parked': is_parked
-        }
-        data.append(row_dict)
+#     data = []
+#     for row in rows:
+#         id, rego, temp, humid, time_entry, is_parked, time_exit, time_diff = row
+#         row_dict = {
+#             'id': id,
+#             'rego': rego,
+#             'temp': temp,
+#             'humid': humid,
+#             'time_entry': time_entry,
+#             'time_exit': time_exit,
+#             'time_diff': time_diff,
+#             'is_parked': is_parked
+#         }
+#         data.append(row_dict)
 
-    cursor.close()
-    conn.close()
+#     cursor.close()
+#     conn.close()
 
-    return data
+#     return data
 
-data = read_parking_database()
-for row in data:
-    print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
+# data = read_parking_database()
+# for row in data:
+#     print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
 
 #############
 
 def read_price_database():
-
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
 
@@ -196,14 +198,24 @@ def read_price_database():
             'id': id,
             'price': price
         }
-        data.append(row_p)
+        dataP.append(row_p)
 
     cursor.close()
     conn.close()
 
     return dataP
 
-data = read_price_database()
-for row in data:
-    print("id:",row['id'], "price:",row['price'])
+def read_price_periodically():
+    while True:
+        data = read_price_database()
+        for row in data:
+            print("id:",row['id'], "price:",row['price'])
+        time.sleep(30)
+
+# Schedule read_price_periodically to run every 30 seconds
+schedule.every(30).seconds.do(read_price_periodically)
+
+while True:
+    schedule.run_pending()
+    time.sleep(1)
 
