@@ -84,12 +84,12 @@ def car_entry():
     cursor.close()
     conn.close()
 
-car_entry()
+#car_entry()
 
 #############
 
 def get_exit_reg():
-    return "AB66CD"
+    return "CD233DC"
 
 def car_exit():
     
@@ -143,11 +143,11 @@ def car_exit():
     cursor.close()
     conn.close()
 
-car_exit()
+#car_exit()
 
 #############
 
-def read_database():
+def read_parking_database():
 
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
@@ -175,7 +175,35 @@ def read_database():
 
     return data
 
-data = read_database()
+data = read_parking_database()
 for row in data:
     print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
+
+#############
+
+def read_price_database():
+
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM price_table ORDER BY id ASC")
+    rows = cursor.fetchall()
+
+    dataP = []
+    for row in rows:
+        id, price = row
+        row_p = {
+            'id': id,
+            'price': price
+        }
+        data.append(row_p)
+
+    cursor.close()
+    conn.close()
+
+    return dataP
+
+data = read_price_database()
+for row in data:
+    print("id:",row['id'], "price:",row['price'])
 
