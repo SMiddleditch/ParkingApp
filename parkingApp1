@@ -5,6 +5,7 @@ import schedule
 import threading
 import random
 import math
+from ml_parking_model import calculate_parking_charge
 
 
 server_name = 'parkpal-server.database.windows.net'
@@ -18,36 +19,9 @@ conn = pyodbc.connect(connection_string)
 
 cursor = conn.cursor()
 
-def create_price_table():
-    cursor.execute('''
-        IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[price_table]') AND type in (N'U'))
-        BEGIN
-            CREATE TABLE [dbo].[price_table](
-                [id] [int] IDENTITY(1,1) NOT NULL,
-                [price] [float] NOT NULL,
-            )
-        END
-    ''')
-    conn.commit()
-
-create_price_table()
-
 def car_entry():
-    def create_parking_table():
-        cursor.execute('''
-            IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[parking_table]') AND type in (N'U'))
-            BEGIN
-                CREATE TABLE [dbo].[parking_table](
-                    [id] [int] IDENTITY(1,1) NOT NULL,
-                    [rego] [nvarchar](50) NOT NULL,
-                    [temp] [float] NOT NULL,
-                    [humid] [float] NOT NULL,
-                    [time_entry] [datetime] NOT NULL,
-                    [is_parked] [int] NULL
-                )
-            END
-        ''')
-        conn.commit()
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
 
     def get_rego():
         rego = input("Enter registration number: ") # cam
@@ -60,39 +34,49 @@ def car_entry():
     def get_humid(): 
         humid = float(input("Enter humidity: ")) # humid
         return humid
-
+    
     def get_time_entry():
-        time_entry = datetime.now().replace(microsecond=0) # Datetime without milliseconds
+        # Set a specific date and time
+        time_entry = datetime(2023, 5, 23, 17, 0, 0)  # Year, Month, Day, Hour, Minute, Second
         return time_entry.strftime('%Y-%m-%d %H:%M:%S')
-
+    
     def insert_row(rego, temp, humid):
         time_entry = get_time_entry()
         is_parked = 1
-        insert_row_sql = f"INSERT INTO parking_table (rego, temp, humid, time_entry, is_parked) VALUES ('{rego}', {temp}, {humid}, '{time_entry}', {is_parked})"
-        cursor.execute(insert_row_sql)
+        insert_row_sql = f"INSERT INTO parking_table (rego, temp, humid, time_entry, is_parked) VALUES (?, ?, ?, ?, ?)"
+        cursor.execute(insert_row_sql, (rego, temp, humid, time_entry, is_parked))
+        conn.commit()
+
+        # Get the id of the row we just inserted
+        cursor.execute("SELECT @@IDENTITY AS 'Identity'")
+        id = cursor.fetchone()[0]
+
+        # Now insert into charges_table with the same id
+        charge = 0
+        insert_row_sql_charges = f"INSERT INTO charges_table (id, charge) VALUES (?, ?)"
+        cursor.execute(insert_row_sql_charges, (id, charge))
         conn.commit()
 
     def select_all_rows():
         cursor.execute('SELECT ROW_NUMBER() OVER (ORDER BY time_entry ASC) AS id, rego, temp, humid, time_entry, is_parked FROM parking_table')
         for row in cursor.fetchall():
             print(row)
-
-    create_parking_table()    
+ 
     rego = get_rego()
     temp = get_temp()
     humid = get_humid()
     insert_row(rego, temp, humid)
-    select_all_rows()
+    select_all_rows()  
 
     cursor.close()
     conn.close()
 
-#car_entry()
+car_entry()
 
 #############
 
-def get_exit_reg():
-    return "CD233DC"
+def get_exit_reg(): 
+    return "AB111CD"
 
 def car_exit():
     
@@ -129,93 +113,95 @@ def car_exit():
             is_parked = 0
             update_row_sql = "UPDATE parking_table SET time_exit=?, time_diff=?, is_parked=? WHERE id=?"
             cursor.execute(update_row_sql, (time_exit, time_diff, is_parked, id))
-
             conn.commit()
         else:
             print(f"No parked cars found with rego: {rego}")
 
+    def select_all_rows():
+        cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
+        for row in cursor.fetchall():
+            print(row)
+
     add_columns()
-
     update_parking_table()
-
-    cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
-    rows = cursor.fetchall()
-    for row in rows:
-        print(row)
+    select_all_rows()
 
     cursor.close()
     conn.close()
 
-#car_exit()
+    calculate_parking_charge()
 
-#############
+car_exit()
 
-# def read_parking_database():
+##############################
 
-#     conn = pyodbc.connect(connection_string)
-#     cursor = conn.cursor()
+def read_parking_database():
 
-#     cursor.execute("SELECT * FROM parking_table ORDER BY time_entry ASC")
-#     rows = cursor.fetchall()
-
-#     data = []
-#     for row in rows:
-#         id, rego, temp, humid, time_entry, is_parked, time_exit, time_diff = row
-#         row_dict = {
-#             'id': id,
-#             'rego': rego,
-#             'temp': temp,
-#             'humid': humid,
-#             'time_entry': time_entry,
-#             'time_exit': time_exit,
-#             'time_diff': time_diff,
-#             'is_parked': is_parked
-#         }
-#         data.append(row_dict)
-
-#     cursor.close()
-#     conn.close()
-
-#     return data
-
-# data = read_parking_database()
-# for row in data:
-#     print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
-
-#############
-
-def read_price_database():
     conn = pyodbc.connect(connection_string)
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM price_table ORDER BY id ASC")
+    cursor.execute("SELECT * FROM parking_table WHERE time_exit IS NOT NULL ORDER BY time_entry ASC")
     rows = cursor.fetchall()
 
-    dataP = []
+    data = []
     for row in rows:
-        id, price = row
-        row_p = {
+        id, rego, temp, humid, time_entry, is_parked, time_exit, time_diff = row
+        row_dict = {
             'id': id,
-            'price': price
+            'rego': rego,
+            'temp': temp,
+            'humid': humid,
+            'time_entry': time_entry,
+            'time_exit': time_exit,
+            'time_diff': time_diff,
+            'is_parked': is_parked
         }
-        dataP.append(row_p)
+        data.append(row_dict)
 
     cursor.close()
     conn.close()
 
-    return dataP
+    return data
 
-def read_price_periodically():
-    while True:
-        data = read_price_database()
-        for row in data:
-            print("id:",row['id'], "price:",row['price'])
-        time.sleep(30)
+data = read_parking_database()
+for row in data:
+    print("Rego:",row['rego'], "Temp:",row['temp'], "Humid:",row['humid'], "Entry:",row['time_entry'], "Exit:",row['time_exit'], "Duration:",row['time_diff'], "Status:",row['is_parked'])
 
-# Schedule read_price_periodically to run every 30 seconds
-schedule.every(30).seconds.do(read_price_periodically)
+############
+
+def read_charge_database():
+    conn = pyodbc.connect(connection_string)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT TOP 1 * FROM charges_table WHERE charge IS NOT NULL ORDER BY id DESC")
+    row = cursor.fetchone()
+
+    if row is not None:
+        id, charge = row
+        row_p = {
+            'id': id,
+            'charge': charge
+        }
+    else:
+        row_p = None
+
+    cursor.close()
+    conn.close()
+
+    return row_p
+
+def read_charge_periodically():
+    row = read_charge_database()
+    if row is not None:
+        print("id:", row['id'], "Fee:", row['charge'])
+    else:
+        print("No new charges found.")
+
+# Schedule read_charge_periodically to run every 30 seconds
+schedule.every(30).seconds.do(read_charge_periodically)
 
 while True:
     schedule.run_pending()
     time.sleep(1)
+
 
